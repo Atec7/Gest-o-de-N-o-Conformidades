@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestão de Tarefas</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f2f2f7;
+      color: #333;
+    }
+    header {
+      background: #012511;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      font-size: 1.4em;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    }
+    main {
+      padding: 16px;
+      max-width: 600px;
+      margin: auto;
+    }
+    textarea, select, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 1em;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+      background: #fff;
+      border: 1px solid #ccc;
+    }
+    select {
+      background: #fff;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: green;
+      color: white;
+      font-weight: bold;
+      transition: 0.3s;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #357ac9;
+    }
+    .contadores {
+      margin-top: 16px;
+      font-size: 1em;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+    }
+    .tarefa {
+      background: white;
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      transition: 0.3s;
+      word-wrap: break-word;
+      font-size: 0.92em;
+    }
+    .tarefa.concluida {
+      border-left: 4px solid green;
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+    .tarefa.pending {
+      border-left: 4px solid orange;
+    }
+    .tarefa strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #222;
+    }
+    .tarefa a {
+      color: #4a90e2;
+      word-break: break-word;
+    }
+    .acoes {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .acoes button {
+      flex: 1;
+      font-size: 0.85em;
+      padding: 6px;
+    }
+    .limpar-btn {
+      margin-top: 20px;
+      background: #ff3b30;
+    }
+    .limpar-btn:hover {
+      background: #e52e25;
+    }
+    footer {
+      text-align: center;
+      font-size: 0.9em;
+      color: #999;
+      margin: 40px 0 20px;
+    }
+    .mensagem-sucesso {
+      background: #d4edda;
+      color: #155724;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      border: 1px solid #c3e6cb;
+      display: none;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    @media (hover: none) {
+      button:hover {
+        background: #4a90e2;
+      }
+      .limpar-btn:hover {
+        background: #ff3b30;
+      }
+    }
+    p{
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <header>❌💱✅<br> Gestão de  Não Conformidades</header>
+  <p>Gerência de Serviços Técnicos e Comerciais</p>
+  <main>
+    <textarea id="inputTexto" placeholder="Cole aqui o texto completo da Atribuição..."></textarea>
+
+    <select id="atribuidor">
+      <option value="" disabled selected>Quem atribuiu?</option>
+      <option value="Atribuído por: Arnaldo de Sousa Lima">Atribuído por: Arnaldo de Sousa Lima</option>
+      <option value="Atribuído por: Lucas Antonio Jesus">Atribuído por: Lucas Antonio Jesus</option>
+      <option value="Atribuído por: Victor Silva de Mello">Atribuído por: Victor Silva de Mello</option>
+    </select>
+
+    <button onclick="adicionarTarefa()">Adicionar Atribuição</button>
+
+    <div class="mensagem-sucesso" id="mensagemSucesso">
+      Não Conformidade finalizada com sucesso!
+    </div>
+
+    <div class="contadores">
+      <div>Pendentes: <span id="totalPendentes">0</span></div>
+      <div>Concluídas: <span id="totalConcluidas">0</span></div>
+    </div>
+
+    <div id="listaTarefas"></div>
+
+    <button class="limpar-btn" onclick="limparTudo()">Limpar Todos os Registros</button>
+  </main>
+
+  <footer>
+    Todos os direitos reservados - Arnaldo S. Lima
+  </footer>
+
+  <script>
+    let tarefas = JSON.parse(localStorage.getItem('tarefas')) || [];
+
+    function salvarTarefas() {
+      localStorage.setItem('tarefas', JSON.stringify(tarefas));
+    }
+
+    function atualizarContadores() {
+      const pendentes = tarefas.filter(t => !t.concluida).length;
+      const concluidas = tarefas.filter(t => t.concluida).length;
+      document.getElementById('totalPendentes').textContent = pendentes;
+      document.getElementById('totalConcluidas').textContent = concluidas;
+    }
+
+    function formatarTextoComLinks(texto) {
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return texto
+        .replace(/\n/g, '<br>')
+        .replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
+    }
+
+    function renderizarTarefas() {
+      const lista = document.getElementById('listaTarefas');
+      lista.innerHTML = '';
+
+      const ordenadas = [...tarefas].sort((a, b) => {
+        return (a.concluida === b.concluida) ? 0 : a.concluida ? 1 : -1;
+      });
+
+      ordenadas.forEach((tarefa, indexOriginal) => {
+        const div = document.createElement('div');
+        div.className = 'tarefa ' + (tarefa.concluida ? 'concluida' : 'pending');
+        div.innerHTML = `
+          <strong>${tarefa.atribuidaPor}</strong>
+          <div>${formatarTextoComLinks(tarefa.texto)}</div>
+          <div class="acoes">
+            <button onclick="alternarStatus(${tarefas.indexOf(tarefa)})">
+              ${tarefa.concluida ? 'Marcar como Pendente' : 'Marcar como Concluída'}
+            </button>
+            <button onclick="excluirTarefa(${tarefas.indexOf(tarefa)})" style="background: #ccc; color: #000;">
+              Excluir
+            </button>
+          </div>
+        `;
+        lista.appendChild(div);
+      });
+
+      atualizarContadores();
+    }
+
+    function adicionarTarefa() {
+      const texto = document.getElementById('inputTexto').value.trim();
+      const atribuidaPor = document.getElementById('atribuidor').value;
+
+      if (!texto || !atribuidaPor) {
+        alert("Preencha o texto e selecione quem atribuiu.");
+        return;
+      }
+
+      tarefas.push({ texto, atribuidaPor, concluida: false });
+
+      salvarTarefas();
+      renderizarTarefas();
+
+      document.getElementById('inputTexto').value = '';
+      document.getElementById('atribuidor').selectedIndex = 0;
+    }
+
+    function alternarStatus(index) {
+      tarefas[index].concluida = !tarefas[index].concluida;
+      salvarTarefas();
+      renderizarTarefas();
+
+      if (tarefas[index].concluida) {
+        const msg = document.getElementById('mensagemSucesso');
+        msg.style.display = 'block';
+        setTimeout(() => {
+          msg.style.display = 'none';
+        }, 3000);
+      }
+    }
+
+    function excluirTarefa(index) {
+      if (confirm("Deseja excluir esta tarefa?")) {
+        tarefas.splice(index, 1);
+        salvarTarefas();
+        renderizarTarefas();
+      }
+    }
+
+    function limparTudo() {
+      if (confirm("Tem certeza que deseja excluir TODAS as tarefas?")) {
+        tarefas = [];
+        salvarTarefas();
+        renderizarTarefas();
+      }
+    }
+
+    renderizarTarefas();
+  </script>
+</body>
+</html>
